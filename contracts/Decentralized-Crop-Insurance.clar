@@ -15,6 +15,9 @@
 (define-data-var total-premiums-collected uint u0)
 (define-data-var total-claims-paid uint u0)
 
+(define-constant err-invalid-risk-multiplier (err u110))
+(define-constant err-risk-data-not-found (err u111))
+
 (define-map policies
   { policy-id: uint }
   {
@@ -318,4 +321,82 @@
 
 (define-read-only (is-oracle-authorized (oracle principal))
   (default-to { is-authorized: false } (map-get? authorized-oracles { oracle: oracle }))
+)
+
+
+
+(define-map location-risk-multipliers
+  { location: (string-ascii 100) }
+  { multiplier: uint }
+)
+
+(define-map crop-base-rates
+  { crop-type: (string-ascii 50) }
+  { base-rate: uint }
+)
+
+(define-public (set-location-risk (location (string-ascii 100)) (multiplier uint))
+  (begin
+    (asserts! (is-eq tx-sender contract-owner) err-owner-only)
+    (asserts! (and (>= multiplier u50) (<= multiplier u300)) err-invalid-risk-multiplier)
+    (ok (map-set location-risk-multipliers { location: location } { multiplier: multiplier }))
+  )
+)
+
+(define-public (set-crop-base-rate (crop-type (string-ascii 50)) (base-rate uint))
+  (begin
+    (asserts! (is-eq tx-sender contract-owner) err-owner-only)
+    (asserts! (and (>= base-rate u1) (<= base-rate u20)) err-invalid-risk-multiplier)
+    (ok (map-set crop-base-rates { crop-type: crop-type } { base-rate: base-rate }))
+  )
+)
+
+(define-read-only (calculate-premium 
+  (coverage-amount uint)
+  (duration-blocks uint)
+  (crop-type (string-ascii 50))
+  (location (string-ascii 100)))
+  (let
+    (
+      (location-risk (default-to { multiplier: u100 } 
+        (map-get? location-risk-multipliers { location: location })))
+      (crop-rate (default-to { base-rate: u5 } 
+        (map-get? crop-base-rates { crop-type: crop-type })))
+      (duration-years (/ duration-blocks u52560))
+      (adjusted-duration (if (is-eq duration-years u0) u1 duration-years))
+      (base-premium (/ (* coverage-amount (get base-rate crop-rate)) u100))
+      (risk-adjusted-premium (/ (* base-premium (get multiplier location-risk)) u100))
+      (final-premium (/ (* risk-adjusted-premium adjusted-duration) u1))
+    )
+    (if (< final-premium u1000) u1000 final-premium)
+  )
+)
+
+(define-public (create-policy-with-calculated-premium
+  (coverage-amount uint)
+  (crop-type (string-ascii 50))
+  (location (string-ascii 100))
+  (duration-blocks uint))
+  (let
+    (
+      (calculated-premium (calculate-premium coverage-amount duration-blocks crop-type location))
+    )
+    (create-policy calculated-premium coverage-amount crop-type location duration-blocks)
+  )
+)
+
+(define-read-only (get-location-risk (location (string-ascii 100)))
+  (map-get? location-risk-multipliers { location: location })
+)
+
+(define-read-only (get-crop-base-rate (crop-type (string-ascii 50)))
+  (map-get? crop-base-rates { crop-type: crop-type })
+)
+
+(define-read-only (get-premium-quote 
+  (coverage-amount uint)
+  (duration-blocks uint)
+  (crop-type (string-ascii 50))
+  (location (string-ascii 100)))
+  (calculate-premium coverage-amount duration-blocks crop-type location)
 )
