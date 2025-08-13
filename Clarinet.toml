@@ -1,0 +1,28 @@
+[project]
+name = 'Decentralized-Crop-Insurance'
+description = ''
+authors = []
+telemetry = true
+cache_dir = '.\.cache'
+requirements = []
+[contracts.Decentralized-Crop-Insurance]
+path = 'contracts/Decentralized-Crop-Insurance.clar'
+clarity_version = 3
+epoch = 3.1
+
+[contracts.policy-renewal-feature]
+path = 'contracts/policy-renewal-feature.clar'
+clarity_version = 3
+epoch = 3.1
+[repl.analysis]
+passes = ['check_checker']
+
+[repl.analysis.check_checker]
+strict = false
+trusted_sender = false
+trusted_caller = false
+callee_filter = false
+
+[repl.remote_data]
+enabled = false
+api_url = 'https://api.hiro.so'
