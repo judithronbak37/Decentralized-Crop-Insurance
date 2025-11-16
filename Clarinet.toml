@@ -24,6 +24,11 @@ epoch = 3.1
 path = 'contracts/farmer-reputation-rewards.clar'
 clarity_version = 3
 epoch = 3.1
+[contracts.community-pool-governance]
+path = 'contracts/community-pool-governance.clar'
+clarity_version = 3
+epoch = 3.1
+
 [repl.analysis]
 passes = ['check_checker']
 
